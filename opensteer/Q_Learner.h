@@ -100,7 +100,7 @@ public:
     }
 
     if (rand() % 10 < 1) {
-      printf("Random Action taken-----------------\n");
+      printf("Random Action taken\n");
       best_action = rand() % 3;
     }
 

@@ -159,6 +159,8 @@ public:
   bool evading; // xxx store steer sub-state for anotation
   float lastRunningTime; // for auto-reset
 
+  float wrap_angle(float angle);
+
 };
 
 
@@ -722,7 +724,6 @@ Q_Learner::worldState* CtfSeeker::get_world_state(){
   Vec3 toEnemy = ctfEnemies[0]->position();
   Vec3 toHideSpot = hide();
   Vec3 e_heading = ctfEnemies[0]->getForward();
-  Vec3 enemyToSeeker = -toEnemy;
 
   if (state == tagged) g_state = 1;
   if (state == atGoal) g_state = 2;
@@ -730,7 +731,7 @@ Q_Learner::worldState* CtfSeeker::get_world_state(){
   g_angle = atan2f(toHome.z, toHome.x) - atan2f(heading.z, heading.x);
   e_dist = toEnemy.length();
   e_angle = atan2f(toEnemy.z, toEnemy.x) - atan2f(heading.z, heading.x);
-  e_facing = atan2f(enemyToSeeker.z, enemyToSeeker.x) - atan2f(e_heading.z, e_heading.x);
+  e_facing = atan2f(-toEnemy.z, -toEnemy.x) - atan2f(e_heading.z, e_heading.x);
   hs_dist = toHideSpot.length();
   hs_angle = atan2f(toHideSpot.z, toHideSpot.x) - atan2f(heading.z, heading.x);
 
@@ -806,6 +807,11 @@ Vec3 CtfSeeker::GetHidingPosition(const Vec3 posOb, const float radiusOb, const 
   return hidingSpot;
 }
 
+float CtfSeeker::wrap_angle(float angle){
+
+
+}
+
 
 Vec3 CtfSeeker::hide(){
   float DistToClosest = 10000.0f;
@@ -834,6 +840,34 @@ void CtfSeeker::draw(void)
 {
   // first call the draw method in the base class
   CtfBase::draw();
+
+  Vec3 toHome = gHomeBaseCenter - position();
+  Vec3 heading = getForward();
+  Vec3 toEnemy = ctfEnemies[0]->position() - position();
+  Vec3 e_forward = ctfEnemies[0]->getForward();
+  Vec3 toHideSpot = hide();
+
+  float g_angle = atan2f(toHome.x, toHome.z) - atan2f(heading.x, heading.z);
+  float e_facing = atan2f(-toEnemy.x, -toEnemy.z) - atan2f(e_forward.x, e_forward.z);
+  float e_angle = atan2f(toEnemy.x, toEnemy.z) - atan2f(heading.x, heading.z);
+  float hs_angle = atan2f(toHideSpot.x, toHideSpot.z) - atan2f(heading.x, heading.z);
+
+  
+
+  printf("g_angle: %f\n", g_angle);
+  printf("e_angle: %f\n", e_angle);
+  printf("e_facing: %f\n", e_facing);
+  printf("hs_angle: %f\n\n", hs_angle);
+
+  Vec3 ray_end = position() + forward().rotateAboutGlobalY(g_angle) * 3.0f;
+  annotationLine(position(), ray_end, Vec3(1.0f, 1.0f, 0.0f));
+  ray_end = position() + forward().rotateAboutGlobalY(e_facing) * 3.0f;
+  annotationLine(position(), ray_end, Vec3(0.0f, 1.0f, 1.0f));
+  ray_end = position() + forward().rotateAboutGlobalY(e_angle) * 3.0f;
+  annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 1.0f));
+
+  annotationLine(position(), position() + Vec3(3.0f, 0.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f));
+  annotationLine(position(), position() + Vec3(0.0f, 0.0f, 3.0f), Vec3(0.0f, 1.0f, 0.0f));
 
   // select string describing current seeker state
   char* seekerStateString = "";
@@ -984,7 +1018,7 @@ SOG CtfBase::allObstacles;
 
 
 #define testOneObstacleOverlap(radius, center)               \
-  {                                                            \
+  {                                                          \
     float d = Vec3::distance (c, center);                    \
     float clearance = d - (r + (radius));                    \
     if (minClearance > clearance) minClearance = clearance;  \
