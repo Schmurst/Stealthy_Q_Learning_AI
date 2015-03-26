@@ -177,6 +177,9 @@ public:
   // reset state
   void reset(void);
 
+  //checking fucntion to return whether the seeker has been spotted
+  bool is_seeker_spotted();
+
   // per frame simulation update
   void update(const float currentTime, const float elapsedTime);
 };
@@ -362,31 +365,50 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
 
   // annotation
   annotationVelocityAcceleration();
-  Vec3 VelocityNormal = this->velocity().normalize();
-  annotationLine(this->position(), this->position() + (VelocityNormal.rotateAboutGlobalY(viewingAngle))*viewingRadii, Vec3(1, 0, 0));
-  annotationLine(this->position(), this->position() + (VelocityNormal.rotateAboutGlobalY(-viewingAngle))*viewingRadii, Vec3(1, 0, 0));
   recordTrailVertex(currentTime, position());
+  // viewing arc annotation
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(viewingAngle) * viewingRadii, Vec3(1, 0, 0));
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(viewingAngle * 0.66f) * viewingRadii, Vec3(1, 0, 0));
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(viewingAngle * 0.33f) * viewingRadii, Vec3(1, 0, 0));
+  annotationLine(position(), position() + forward() * viewingRadii, Vec3(1, 0, 0));
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle) * viewingRadii, Vec3(1, 0, 0));
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.66f) * viewingRadii, Vec3(1, 0, 0));
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.33f) * viewingRadii, Vec3(1, 0, 0)); 
 
+  if (is_seeker_spotted()){
+    gSeeker->state = tagged;
+  }
 
+  // annotation:
+  if (gSeeker->state == tagged)
+  {
+    const Vec3 color(0.8f, 0.5f, 0.5f);
+    annotationXZDisk(1.0f, gSeeker->position(), color, 20);
+  }
+}
+
+bool CtfEnemy::is_seeker_spotted(){
   // detect and record interceptions ("tags") of seeker
-  const float seekerToMeDist = Vec3::distance(position(),
-    gSeeker->position());
+  const float seekerToMeDist = Vec3::distance(position(), gSeeker->position());
   Vec3 toTarget = Vec3(gSeeker->position() - this->position()).normalize();
   float angle = (this->forward().normalize()).dot(toTarget);
+  bool seeker_spotted = false;
 
+  // is the seeker inside of me (wehay!) if so, set it to tagged state
+  if (seekerToMeDist < this->radius()){
+    seeker_spotted = true;
+  }
+
+  // is the seeker inside vision cone and radii?
   const bool inVisionCone = (acosf(angle) < viewingAngle);
   if (seekerToMeDist < viewingRadii && inVisionCone)
   {
+    printf("Seeker is inside viewing angle and vision cone\n");
     if (gSeeker->state != tagged && gSeeker->state != atGoal)
-      gSeeker->state = tagged;
-
-    // annotation:
-    if (gSeeker->state == tagged)
-    {
-      const Vec3 color(0.8f, 0.5f, 0.5f);
-      annotationXZDisk(1.0f, gSeeker->position(), color, 20);
-    }
+      seeker_spotted = true;
   }
+
+  return seeker_spotted;
 }
 
 
