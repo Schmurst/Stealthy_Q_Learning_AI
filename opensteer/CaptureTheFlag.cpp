@@ -412,7 +412,11 @@ bool CtfEnemy::is_seeker_spotted(){
         Vec3 center = allObstacles[index]->center;
         Vec3 toObst = center - position();
         if ((toObst.length() + allObstacles[index]->radius) < viewingRadii){
-          printf("There is an obstacle within myt viewing distance\n");
+          printf("There is an obstacle within viewing distance\n");
+          // check whether one of the rays connects with the player then check whether it first
+          // connects with the sphere.
+
+
         }
       }
     }
