@@ -124,7 +124,7 @@ public:
   float QL_episode_length = 1.0f; // seconds
 
   // constructor
-  CtfSeeker() { 
+  CtfSeeker() {
     reset();
     Q_agent.init();
   }
@@ -373,7 +373,7 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
   annotationLine(position(), position() + forward() * viewingRadii, Vec3(1, 0, 0));
   annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle) * viewingRadii, Vec3(1, 0, 0));
   annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.66f) * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.33f) * viewingRadii, Vec3(1, 0, 0)); 
+  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.33f) * viewingRadii, Vec3(1, 0, 0));
 
   if (is_seeker_spotted()){
     gSeeker->state = tagged;
@@ -404,8 +404,20 @@ bool CtfEnemy::is_seeker_spotted(){
   if (seekerToMeDist < viewingRadii && inVisionCone)
   {
     printf("Seeker is inside viewing angle and vision cone\n");
-    if (gSeeker->state != tagged && gSeeker->state != atGoal)
-      seeker_spotted = true;
+    if (gSeeker->state != tagged && gSeeker->state != atGoal){
+
+      // now to test whether there is an obstacle in the way
+      for (unsigned int index = 0; index < allObstacles.size(); ++index){
+        // if obst center is within radius + viewing radius then do further checks
+        Vec3 center = allObstacles[index]->center;
+        Vec3 toObst = center - position();
+        if ((toObst.length() + allObstacles[index]->radius) < viewingRadii){
+          printf("There is an obstacle within myt viewing distance\n");
+        }
+      }
+    }
+
+    seeker_spotted = true;
   }
 
   return seeker_spotted;
@@ -795,7 +807,6 @@ Vec3 CtfSeeker::hide(){
 }
 
 // ----------------------------------------------------------------------------
-
 
 void CtfSeeker::draw(void)
 {

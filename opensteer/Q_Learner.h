@@ -99,7 +99,7 @@ public:
       }
     }
 
-    if (best_action == 0 && rand() % 10 == 0) {
+    if (rand() % 10 < 1) {
       printf("Random Action taken-----------------\n");
       best_action = rand() % 3;
     }
