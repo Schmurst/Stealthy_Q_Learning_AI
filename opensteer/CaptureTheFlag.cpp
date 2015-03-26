@@ -167,10 +167,11 @@ class CtfEnemy : public CtfBase
 public:
 
   // AI seeking variables
-  float viewingAngle = 0.52f;
+  float viewingAngle = 0.52f; // 30 degrees: 60 degree arc
   float viewingRadii = 10.0f;
   int wanderCounter = 0;
   Vec3 wanderSteer;
+  int num_rays = 7; // should be odd inoder to have central ray
   // constructor
   CtfEnemy() { reset(); }
 
@@ -367,13 +368,26 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
   annotationVelocityAcceleration();
   recordTrailVertex(currentTime, position());
   // viewing arc annotation
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(viewingAngle) * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(viewingAngle * 0.66f) * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(viewingAngle * 0.33f) * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward() * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle) * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.66f) * viewingRadii, Vec3(1, 0, 0));
-  annotationLine(position(), position() + forward().rotateAboutGlobalY(-viewingAngle * 0.33f) * viewingRadii, Vec3(1, 0, 0));
+
+
+  for (unsigned int ray_index = 0; ray_index < num_rays; ++ray_index){
+    // first iterate the angle of the ray being annotated
+    float angle = viewingAngle - ray_index * viewingAngle / (num_rays / 2);
+    Vec3 ray_end = position() + forward().rotateAboutGlobalY(angle) * viewingRadii;
+
+    for (unsigned int index = 0; index < allObstacles.size(); ++index){
+      // if obst center is within radius + viewing radius then do further checks
+      Vec3 center = allObstacles[index]->center;
+      float radii = allObstacles[index]->radius;
+      Vec3 toObst = center - this->position();
+      if (toObst.length() < viewingRadii + allObstacles[index]->radius){
+        // check whether one of the rays connects with the obstacle
+        SimpleVehicle::get_line_circle_intersection(ray_end, position(), ray_end, center, radii);
+      }
+    }
+    annotationLine(position(), ray_end, Vec3(0, 1, 0));
+  }
+
 
   if (is_seeker_spotted()){
     gSeeker->state = tagged;
@@ -393,6 +407,7 @@ bool CtfEnemy::is_seeker_spotted(){
   Vec3 toTarget = Vec3(gSeeker->position() - this->position()).normalize();
   float angle = (this->forward().normalize()).dot(toTarget);
   bool seeker_spotted = false;
+  Vec3 intersection_point;
 
   // is the seeker inside of me (wehay!) if so, set it to tagged state
   if (seekerToMeDist < this->radius()){
@@ -403,25 +418,28 @@ bool CtfEnemy::is_seeker_spotted(){
   const bool inVisionCone = (acosf(angle) < viewingAngle);
   if (seekerToMeDist < viewingRadii && inVisionCone)
   {
-    printf("Seeker is inside viewing angle and vision cone\n");
     if (gSeeker->state != tagged && gSeeker->state != atGoal){
-
+      seeker_spotted = true;
       // now to test whether there is an obstacle in the way
       for (unsigned int index = 0; index < allObstacles.size(); ++index){
         // if obst center is within radius + viewing radius then do further checks
         Vec3 center = allObstacles[index]->center;
+        float radii = allObstacles[index]->radius;
         Vec3 toObst = center - position();
         if ((toObst.length() + allObstacles[index]->radius) < viewingRadii){
-          printf("There is an obstacle within viewing distance\n");
           // check whether one of the rays connects with the player then check whether it first
           // connects with the sphere.
-
-
+          for (unsigned int ray_index = 0; ray_index < num_rays; ++ray_index){
+            float angle = viewingAngle - ray_index * viewingAngle / num_rays;
+            Vec3 ray_end = position() + forward().rotateAboutGlobalY(angle) * viewingRadii;
+            SimpleVehicle::get_line_circle_intersection(intersection_point, position(), ray_end, center, radii);
+            if ((intersection_point - position()).lengthSquared() < (gSeeker->position() - position()).lengthSquared()){
+              seeker_spotted = false;
+            }
+          }
         }
       }
     }
-
-    seeker_spotted = true;
   }
 
   return seeker_spotted;
@@ -966,11 +984,11 @@ SOG CtfBase::allObstacles;
 
 
 #define testOneObstacleOverlap(radius, center)               \
-{                                                            \
+  {                                                            \
     float d = Vec3::distance (c, center);                    \
     float clearance = d - (r + (radius));                    \
     if (minClearance > clearance) minClearance = clearance;  \
-}
+  }
 
 
 void CtfBase::initializeObstacles(void)

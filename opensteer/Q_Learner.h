@@ -141,7 +141,7 @@ public:
 
     // reward for approaching the goal
     if (curr_ws->goal_dist < prev_ws->goal_dist){
-      reward += 0.05f;
+      reward += 0.15f;
     }
     else{
       reward -= 0.02f;
