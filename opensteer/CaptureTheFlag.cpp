@@ -384,10 +384,7 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
     if (gSeeker->state == tagged)
     {
       const Vec3 color(0.8f, 0.5f, 0.5f);
-      annotationXZDisk(1.0f,
-        gSeeker->position(),
-        color,
-        20);
+      annotationXZDisk(1.0f, gSeeker->position(), color, 20);
     }
   }
 }
@@ -662,12 +659,14 @@ Vec3 CtfSeeker::steeringForSeeker(void)
 }
 
 Q_Learner::worldState* CtfSeeker::get_world_state(){
-  float g_dist, g_angle, e_dist, e_angle, hs_dist, hs_angle;
+  float g_dist, g_angle, e_dist, e_angle, e_facing, hs_dist, hs_angle;
   int g_state = 0;
   Vec3 toHome = gHomeBaseCenter - position();
   Vec3 heading = getForward();
   Vec3 toEnemy = ctfEnemies[0]->position();
   Vec3 toHideSpot = hide();
+  Vec3 e_heading = ctfEnemies[0]->getForward();
+  Vec3 enemyToSeeker = -toEnemy;
 
   if (state == tagged) g_state = 1;
   if (state == atGoal) g_state = 2;
@@ -675,10 +674,11 @@ Q_Learner::worldState* CtfSeeker::get_world_state(){
   g_angle = atan2f(toHome.z, toHome.x) - atan2f(heading.z, heading.x);
   e_dist = toEnemy.length();
   e_angle = atan2f(toEnemy.z, toEnemy.x) - atan2f(heading.z, heading.x);
+  e_facing = atan2f(enemyToSeeker.z, enemyToSeeker.x) - atan2f(e_heading.z, e_heading.x);
   hs_dist = toHideSpot.length();
   hs_angle = atan2f(toHideSpot.z, toHideSpot.x) - atan2f(heading.z, heading.x);
 
-  Q_Learner::worldState* ws = new Q_Learner::worldState(g_state, g_dist, g_angle, e_dist, e_angle, hs_dist, hs_angle);
+  Q_Learner::worldState* ws = new Q_Learner::worldState(g_state, g_dist, g_angle, e_dist, e_angle, e_facing, hs_dist, hs_angle);
   // ws->print();
   return ws;
 }

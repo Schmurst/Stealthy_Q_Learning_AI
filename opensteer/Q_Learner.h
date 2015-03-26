@@ -32,15 +32,17 @@ public:
     float goal_angle;
     float enemy_dist;
     float enemy_angle;
+    float enemy_facing; // direction the enemy is facing with regards to the seeker
     float hide_spot_dist;
     float hide_spot_angle;
 
-    worldState(int seeker_state, float g_dist, float g_angle, float e_dist, float e_angle, float hs_dist, float hs_angle){
+    worldState(int seeker_state, float g_dist, float g_angle, float e_dist, float e_angle, float e_facing, float hs_dist, float hs_angle){
       state = seeker_state;
       goal_dist = g_dist;
       goal_angle = g_angle;
       enemy_dist = e_dist;
       enemy_angle = e_angle;
+      enemy_facing = e_facing;
       hide_spot_dist = hs_dist;
       hide_spot_angle = hs_angle;
     }
@@ -54,9 +56,9 @@ public:
   };
 
   void init(){
-    int num_inputs = 7;
+    int num_inputs = 8;
     int num_layers = 3;
-    int num_hidden = 6;
+    int num_hidden = 7;
     int num_outputs = 3;
     // create fann network
     ann = fann_create_standard(num_layers, num_inputs, num_hidden, num_outputs);
@@ -158,7 +160,7 @@ public:
       reward += 0.0f;
     }
     else{
-      reward -= 0.0f;
+      reward -= 0.05f;
     }
 
     // increment reward by learning discount * next best state
