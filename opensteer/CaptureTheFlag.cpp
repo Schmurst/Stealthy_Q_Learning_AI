@@ -190,7 +190,7 @@ public:
 // globals
 // (perhaps these should be member variables of a Vehicle or PlugIn class)
 
-bool IS_DEBUG = true;
+bool IS_DEBUG = false;
 const int CtfBase::maxObstacleCount = 100;
 
 const Vec3 gHomeBaseCenter(0, 0, 0);

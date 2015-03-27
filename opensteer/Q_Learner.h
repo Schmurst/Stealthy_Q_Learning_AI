@@ -66,7 +66,7 @@ public:
 
     // create fann network from file
     ann = fann_create_from_file("neural_network.txt");
-    if (ann->errno_f == 0){
+    if (ann == NULL){
       fann_destroy(ann);
       ann = fann_create_standard(num_layers, num_inputs, num_hidden, num_outputs);
       fann_save(ann, "neural_network.txt");
@@ -76,7 +76,7 @@ public:
     fann_set_bit_fail_limit(ann, 0.01f);
 
     // set learning discount for Q-Learning
-    alpha = 0.9f;
+    alpha = 0.1f;
     gamma = 0.8f;
   }
 
@@ -147,10 +147,10 @@ public:
     {
     case 1:
       printf("Lose\n");
-      return 0.0f; // severe punishment for getting caught
+      return -10.0f; // severe punishment for getting caught
     case 2:
       printf("Win\n");
-      return 1.0f; // massive reward for success
+      return 10.0f; // massive reward for success
     default:
       break;
     }
