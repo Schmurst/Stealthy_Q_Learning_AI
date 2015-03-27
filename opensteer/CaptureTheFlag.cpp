@@ -57,6 +57,7 @@
 #include "OpenSteer/OpenSteerDemo.h"
 #include "Q_Learner.h"
 
+#define M_PI 3.14159265359f
 
 using namespace OpenSteer;
 
@@ -402,14 +403,10 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
 
 bool CtfEnemy::is_seeker_spotted(){
   // detect and record interceptions ("tags") of seeker
-  const float seekerToMeDist = Vec3::distance(position(), gSeeker->position());
+  const float seekerToMeDist = (position() - gSeeker->position()).length();
   Vec3 toTarget = Vec3(gSeeker->position() - this->position()).normalize();
-  float angle = atan2f(toTarget.x, toTarget.z) - atan2f(getForward().x, getForward().z);
   bool seeker_spotted = false;
   Vec3 intersection_point;
-
-  Vec3 ray_end = position() + forward().rotateAboutGlobalY(angle) * 3.0f;
-  annotationLine(position(), ray_end, Vec3(1, 0, 0));
 
   // is the seeker inside of me (wehay!) if so, set it to tagged state
   if (seekerToMeDist < this->radius()){
@@ -417,7 +414,13 @@ bool CtfEnemy::is_seeker_spotted(){
   }
 
   // is the seeker inside vision cone and radii?
-  const bool inVisionCone = (abs(angle) < viewingAngle);
+  float angle = atan2f(toTarget.x, toTarget.z) - atan2f(getForward().x, getForward().z);
+  if (angle < 0) angle += 2 * M_PI;
+
+  Vec3 ray_end = position() + forward() * 3.0f;
+  annotationLine(position(), ray_end, Vec3(1, 0, 0));
+
+  const bool inVisionCone = (angle < viewingAngle || angle > -viewingAngle + M_PI);
   if (seekerToMeDist < viewingRadii && inVisionCone)
   {
     if (gSeeker->state != tagged && gSeeker->state != atGoal){

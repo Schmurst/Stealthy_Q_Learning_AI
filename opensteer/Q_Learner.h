@@ -15,7 +15,7 @@ class Q_Learner{
 private:
   float learning_discount;
   struct fann *ann;
-  
+
 
 public:
   Q_Learner(){
@@ -60,10 +60,14 @@ public:
     int num_layers = 3;
     int num_hidden = 7;
     int num_outputs = 3;
-    // create fann network
-    ann = fann_create_standard(num_layers, num_inputs, num_hidden, num_outputs);
+
+    // create fann network from file
+    ann = fann_create_from_file("neural_network.txt");
+
     // set fail bit limit whatever that is
     fann_set_bit_fail_limit(ann, 0.01f);
+
+
     // set learning discount for Q-Learning
     learning_discount = 0.8f;
   }
@@ -77,11 +81,15 @@ public:
     // calculate the reward value for previous state and action
     float reward = get_reward(prev_ws, curr_ws);
     // assign the reward to the training vlaues for the neural network
+    printf("Action Reward: %f\n", reward);
+    printf("Current Value: %f\n", ann_training_values[prev_action]);
     ann_training_values[prev_action] = reward;
     // the training on the neural network
     fann_train(ann, (fann_type*)&prev_ws, ann_training_values);
     // assign the new best action to prev_action and return it
     prev_action = get_best_action(curr_ws);
+
+    fann_save(ann, "neural_network.txt");
     return prev_action;
   }
 
@@ -104,12 +112,12 @@ public:
       best_action = rand() % 3;
     }
 
-    return (actions) best_action;
+    return (actions)best_action;
   }
 
   // returns the maximum Q value for a given world state
   float get_Q_max(const worldState* state){
-    float Q_max = -1000000;
+    float Q_max = -1.0f;
     fann_type* out;
 
     out = fann_run(ann, (fann_type*)&state);
@@ -141,21 +149,11 @@ public:
 
     // GOAL RELATED REWARD ---------------------
     // reward for approaching the goal
-    if (curr_ws->goal_dist > 30.0f){
-      reward = 0.0f;
+    if (curr_ws->goal_dist < prev_ws->goal_dist){
+      reward += 0.5f - (1 / 30)*curr_ws->goal_dist;
     }
     else{
-      if (curr_ws->goal_dist < prev_ws->goal_dist){
-        reward += 0.5f - (1 / 30)*curr_ws->goal_dist;
-      }
-      else{
-        reward -= 0.5f - (1 / 30)*curr_ws->goal_dist;
-      }
-    }
-
-    // reward for turning towards the goal
-    if (curr_ws->goal_angle < prev_ws->goal_angle){
-      reward += 0.005f;
+      reward -= 0.5f - (1 / 30)*curr_ws->goal_dist;
     }
 
     // ENEMY RELATED REWARD ---------------------
@@ -193,27 +191,31 @@ public:
     // HIDE RELATED REWARD ---------------------
     // reward for moving towards hiding spot
     if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist){
-      reward += 0.12f;
+      reward += 0.05f;
     }
     else{
-      reward -= 0.05f;
+      reward -= 0.025f;
     }
 
     // reward for turning towards hiding spot
     if (curr_ws->hide_spot_angle < prev_ws->hide_spot_angle){
-      reward += 0.025f;
+      reward += 0.0025f;
     }
     else {
-      reward -= 0.0125f;
+      reward -= 0.00125f;
     }
 
     // reward to avoid sitting outside the 'play area'
-    if (curr_ws->goal_dist > 30.0f){
+    if (curr_ws->goal_dist < prev_ws->goal_dist && curr_ws->goal_dist > 30.0f){
+      reward = 1.0f;
+    }
+    else{
       reward = 0.0f;
     }
 
     // increment reward by learning discount * next best state
     reward += learning_discount * get_Q_max(curr_ws);
+    reward = (reward > 1.0f) ? reward : 1.0f;
 
     return reward;
   }
