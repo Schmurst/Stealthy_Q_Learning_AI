@@ -158,9 +158,6 @@ public:
   seekerState state;
   bool evading; // xxx store steer sub-state for anotation
   float lastRunningTime; // for auto-reset
-
-  float wrap_angle(float angle);
-
 };
 
 
@@ -170,7 +167,7 @@ public:
 
   // AI seeking variables
   float viewingAngle = 0.52f; // 30 degrees: 60 degree arc
-  float viewingRadii = 10.0f;
+  float viewingRadii = 15.0f;
   int wanderCounter = 0;
   Vec3 wanderSteer;
   int num_rays = 7; // should be odd inoder to have central ray
@@ -391,7 +388,7 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
   }
 
 
-  if (is_seeker_spotted()){
+  if (is_seeker_spotted() && gSeeker->state != atGoal){
     gSeeker->state = tagged;
   }
 
@@ -407,9 +404,12 @@ bool CtfEnemy::is_seeker_spotted(){
   // detect and record interceptions ("tags") of seeker
   const float seekerToMeDist = Vec3::distance(position(), gSeeker->position());
   Vec3 toTarget = Vec3(gSeeker->position() - this->position()).normalize();
-  float angle = (this->forward().normalize()).dot(toTarget);
+  float angle = atan2f(toTarget.x, toTarget.z) - atan2f(getForward().x, getForward().z);
   bool seeker_spotted = false;
   Vec3 intersection_point;
+
+  Vec3 ray_end = position() + forward().rotateAboutGlobalY(angle) * 3.0f;
+  annotationLine(position(), ray_end, Vec3(1, 0, 0));
 
   // is the seeker inside of me (wehay!) if so, set it to tagged state
   if (seekerToMeDist < this->radius()){
@@ -417,7 +417,7 @@ bool CtfEnemy::is_seeker_spotted(){
   }
 
   // is the seeker inside vision cone and radii?
-  const bool inVisionCone = (acosf(angle) < viewingAngle);
+  const bool inVisionCone = (abs(angle) < viewingAngle);
   if (seekerToMeDist < viewingRadii && inVisionCone)
   {
     if (gSeeker->state != tagged && gSeeker->state != atGoal){
@@ -721,19 +721,20 @@ Q_Learner::worldState* CtfSeeker::get_world_state(){
   int g_state = 0;
   Vec3 toHome = gHomeBaseCenter - position();
   Vec3 heading = getForward();
-  Vec3 toEnemy = ctfEnemies[0]->position();
-  Vec3 toHideSpot = hide();
-  Vec3 e_heading = ctfEnemies[0]->getForward();
+  Vec3 toEnemy = ctfEnemies[0]->position() - position();
+  Vec3 e_forward = ctfEnemies[0]->getForward();
+  Vec3 toHideSpot = hide() - position();
 
   if (state == tagged) g_state = 1;
   if (state == atGoal) g_state = 2;
   g_dist = toHome.length();
-  g_angle = atan2f(toHome.z, toHome.x) - atan2f(heading.z, heading.x);
   e_dist = toEnemy.length();
-  e_angle = atan2f(toEnemy.z, toEnemy.x) - atan2f(heading.z, heading.x);
-  e_facing = atan2f(-toEnemy.z, -toEnemy.x) - atan2f(e_heading.z, e_heading.x);
   hs_dist = toHideSpot.length();
-  hs_angle = atan2f(toHideSpot.z, toHideSpot.x) - atan2f(heading.z, heading.x);
+
+  g_angle = atan2f(toHome.x, toHome.z) - atan2f(heading.x, heading.z);
+  e_facing = atan2f(-toEnemy.x, -toEnemy.z) - atan2f(e_forward.x, e_forward.z);
+  e_angle = atan2f(toEnemy.x, toEnemy.z) - atan2f(heading.x, heading.z);
+  hs_angle = atan2f(toHideSpot.x, toHideSpot.z) - atan2f(heading.x, heading.z);
 
   Q_Learner::worldState* ws = new Q_Learner::worldState(g_state, g_dist, g_angle, e_dist, e_angle, e_facing, hs_dist, hs_angle);
   // ws->print();
@@ -807,11 +808,6 @@ Vec3 CtfSeeker::GetHidingPosition(const Vec3 posOb, const float radiusOb, const 
   return hidingSpot;
 }
 
-float CtfSeeker::wrap_angle(float angle){
-
-
-}
-
 
 Vec3 CtfSeeker::hide(){
   float DistToClosest = 10000.0f;
@@ -845,19 +841,12 @@ void CtfSeeker::draw(void)
   Vec3 heading = getForward();
   Vec3 toEnemy = ctfEnemies[0]->position() - position();
   Vec3 e_forward = ctfEnemies[0]->getForward();
-  Vec3 toHideSpot = hide();
+  Vec3 toHideSpot = hide() - position();
 
   float g_angle = atan2f(toHome.x, toHome.z) - atan2f(heading.x, heading.z);
   float e_facing = atan2f(-toEnemy.x, -toEnemy.z) - atan2f(e_forward.x, e_forward.z);
   float e_angle = atan2f(toEnemy.x, toEnemy.z) - atan2f(heading.x, heading.z);
   float hs_angle = atan2f(toHideSpot.x, toHideSpot.z) - atan2f(heading.x, heading.z);
-
-  
-
-  printf("g_angle: %f\n", g_angle);
-  printf("e_angle: %f\n", e_angle);
-  printf("e_facing: %f\n", e_facing);
-  printf("hs_angle: %f\n\n", hs_angle);
 
   Vec3 ray_end = position() + forward().rotateAboutGlobalY(g_angle) * 3.0f;
   annotationLine(position(), ray_end, Vec3(1.0f, 1.0f, 0.0f));
@@ -865,9 +854,8 @@ void CtfSeeker::draw(void)
   annotationLine(position(), ray_end, Vec3(0.0f, 1.0f, 1.0f));
   ray_end = position() + forward().rotateAboutGlobalY(e_angle) * 3.0f;
   annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 1.0f));
-
-  annotationLine(position(), position() + Vec3(3.0f, 0.0f, 0.0f), Vec3(1.0f, 0.0f, 0.0f));
-  annotationLine(position(), position() + Vec3(0.0f, 0.0f, 3.0f), Vec3(0.0f, 1.0f, 0.0f));
+  ray_end = position() + forward().rotateAboutGlobalY(hs_angle) * 3.0f;
+  annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 0.0f));
 
   // select string describing current seeker state
   char* seekerStateString = "";
@@ -908,7 +896,6 @@ void CtfSeeker::draw(void)
 
 // ----------------------------------------------------------------------------
 // update method for goal seeker
-
 
 void CtfSeeker::update(const float currentTime, const float elapsedTime)
 {
@@ -1002,7 +989,6 @@ void CtfSeeker::update(const float currentTime, const float elapsedTime)
   annotationVelocityAcceleration();
   recordTrailVertex(currentTime, position());
 }
-
 
 // ----------------------------------------------------------------------------
 // dynamic obstacle registry

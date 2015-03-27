@@ -139,28 +139,77 @@ public:
       break;
     }
 
+    // GOAL RELATED REWARD ---------------------
     // reward for approaching the goal
-    if (curr_ws->goal_dist < prev_ws->goal_dist){
-      reward += 0.15f;
+    if (curr_ws->goal_dist > 30.0f){
+      reward = 0.0f;
     }
     else{
-      reward -= 0.02f;
+      if (curr_ws->goal_dist < prev_ws->goal_dist){
+        reward += 0.5f - (1 / 30)*curr_ws->goal_dist;
+      }
+      else{
+        reward -= 0.5f - (1 / 30)*curr_ws->goal_dist;
+      }
     }
 
+    // reward for turning towards the goal
+    if (curr_ws->goal_angle < prev_ws->goal_angle){
+      reward += 0.005f;
+    }
+
+    // ENEMY RELATED REWARD ---------------------
     // reward for avoiding the enemy
-    if (curr_ws->enemy_dist > prev_ws->enemy_dist){
-      reward += 0.10f;
+    if (curr_ws->enemy_dist < 10.0f){
+      if (curr_ws->enemy_dist > prev_ws->enemy_dist){
+        reward += 0.8f - 0.03f*curr_ws->goal_dist;
+      }
+      else{
+        reward -= 0.8f - 0.03f*curr_ws->goal_dist;
+      }
     }
     else{
-      reward -= 0.400f;
+      if (curr_ws->enemy_dist > prev_ws->enemy_dist){
+        reward += 0.4f - 0.02f*curr_ws->goal_dist;
+      }
+      else{
+        reward -= 0.4f - 0.02f*curr_ws->goal_dist;
+      }
     }
 
+    // reward for moving past enemy, punish for moving towards
+    if (curr_ws->enemy_angle < curr_ws->enemy_angle){
+      reward += 0.005f;
+    }
+    else{
+      reward -= 0.01f;
+    }
+
+    // punish for being inside enemy sign arc
+    if (abs(curr_ws->enemy_facing) < 0.52f){
+      reward -= 0.1f;
+    }
+
+    // HIDE RELATED REWARD ---------------------
     // reward for moving towards hiding spot
     if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist){
-      reward += 0.0f;
+      reward += 0.12f;
     }
     else{
       reward -= 0.05f;
+    }
+
+    // reward for turning towards hiding spot
+    if (curr_ws->hide_spot_angle < prev_ws->hide_spot_angle){
+      reward += 0.025f;
+    }
+    else {
+      reward -= 0.0125f;
+    }
+
+    // reward to avoid sitting outside the 'play area'
+    if (curr_ws->goal_dist > 30.0f){
+      reward = 0.0f;
     }
 
     // increment reward by learning discount * next best state
