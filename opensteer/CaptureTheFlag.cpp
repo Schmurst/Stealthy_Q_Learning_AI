@@ -190,7 +190,7 @@ public:
 // globals
 // (perhaps these should be member variables of a Vehicle or PlugIn class)
 
-
+bool IS_DEBUG = true;
 const int CtfBase::maxObstacleCount = 100;
 
 const Vec3 gHomeBaseCenter(0, 0, 0);
@@ -340,9 +340,9 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
     avoiding = (avoidance == Vec3::zero);
 
     if (avoiding){
-      float dist = (this->position() - gHomeBaseCenter).length();
+      float dist = (this->position() - gSeeker->position()).length();
       if (dist > 20.0f){
-        steer = steerForSeek(gHomeBaseCenter);
+        steer = steerForSeek(gSeeker->position());
       }
       else if (wanderCounter == 0){
         steer = steerForWander(0.5f);
@@ -365,8 +365,8 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
   applySteeringForce(steer, elapsedTime);
 
   // annotation
-  annotationVelocityAcceleration();
-  recordTrailVertex(currentTime, position());
+  if (!IS_DEBUG) annotationVelocityAcceleration();
+  if (!IS_DEBUG) recordTrailVertex(currentTime, position());
   // viewing arc annotation
 
 
@@ -385,7 +385,7 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
         SimpleVehicle::get_line_circle_intersection(ray_end, position(), ray_end, center, radii);
       }
     }
-    annotationLine(position(), ray_end, Vec3(0, 1, 0));
+    if (!IS_DEBUG) annotationLine(position(), ray_end, Vec3(0, 1, 0));
   }
 
 
@@ -397,7 +397,7 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
   if (gSeeker->state == tagged)
   {
     const Vec3 color(0.8f, 0.5f, 0.5f);
-    annotationXZDisk(1.0f, gSeeker->position(), color, 20);
+    if (!IS_DEBUG) annotationXZDisk(1.0f, gSeeker->position(), color, 20);
   }
 }
 
@@ -419,13 +419,16 @@ bool CtfEnemy::is_seeker_spotted(){
   if (angle_to_target < 0.0f) angle_to_target += 2 * M_PI;
   if (angle_to_heading < 0.0f) angle_to_heading += 2 * M_PI;
   float angle = angle_to_target - angle_to_heading;
+  if (angle < 0.0f){
+    angle = angle_to_heading - angle_to_target;
+  }
 
   //printf("angle to target: %f\n", angle_to_target);
   //printf("angle to heading: %f\n", angle_to_heading);
   //printf("angle difference: %f\n\n", angle);
 
   Vec3 ray_end = position() + forward().rotateAboutGlobalY(angle) * 3.0f;
-  annotationLine(position(), ray_end, Vec3(1, 0, 0));
+  if (!IS_DEBUG) annotationLine(position(), ray_end, Vec3(1, 0, 0));
 
   const bool inVisionCone = (angle < viewingAngle || angle > -viewingAngle + 2 * M_PI);
   if (seekerToMeDist < viewingRadii && inVisionCone)
@@ -491,7 +494,7 @@ bool CtfSeeker::clearPathToGoal(const Vec3 target)
     const float eForwardDistance = forward().dot(eOffset);
 
     // xxx temp move this up before the conditionals
-    annotationXZCircle(e.radius(), eFuture, clearPathColor, 20); //xxx
+    if (!IS_DEBUG) annotationXZCircle(e.radius(), eFuture, clearPathColor, 20); //xxx
 
     // consider as potential blocker if within the corridor
     if (inCorridor)
@@ -520,7 +523,7 @@ bool CtfSeeker::clearPathToGoal(const Vec3 target)
         if (!safeToTurnTowardsGoal)
         {
           // this enemy blocks the path to the goal, so return false
-          annotationLine(position(), e.position(), clearPathColor);
+          if (!IS_DEBUG) annotationLine(position(), e.position(), clearPathColor);
           // return false;
           xxxReturn = false;
         }
@@ -532,7 +535,7 @@ bool CtfSeeker::clearPathToGoal(const Vec3 target)
   // clearPathAnnotation (sideThreshold, behindThreshold, goalDirection);
   // return true;
   //if (xxxReturn)
-  clearPathAnnotation(sideThreshold, behindThreshold, goalDirection);
+  if (!IS_DEBUG) clearPathAnnotation(sideThreshold, behindThreshold, goalDirection);
   return xxxReturn;
 }
 
@@ -548,10 +551,10 @@ void CtfSeeker::clearPathAnnotation(const float sideThreshold,
   const Vec3 gun = localRotateForwardToSide(goalDirection);
   const Vec3 gn = gun * sideThreshold;
   const Vec3 hbc = gHomeBaseCenter;
-  annotationLine(pbb + gn, hbc + gn, clearPathColor);
-  annotationLine(pbb - gn, hbc - gn, clearPathColor);
-  annotationLine(hbc - gn, hbc + gn, clearPathColor);
-  annotationLine(pbb - behindSide, pbb + behindSide, clearPathColor);
+  if (!IS_DEBUG) annotationLine(pbb + gn, hbc + gn, clearPathColor);
+  if (!IS_DEBUG) annotationLine(pbb - gn, hbc - gn, clearPathColor);
+  if (!IS_DEBUG) annotationLine(hbc - gn, hbc + gn, clearPathColor);
+  if (!IS_DEBUG) annotationLine(pbb - behindSide, pbb + behindSide, clearPathColor);
 }
 
 
@@ -570,10 +573,10 @@ void CtfBase::annotateAvoidObstacle(const float minDistanceToCollision)
   const Vec3 BR = position() - boxSide;
   const Vec3 BL = position() + boxSide;
   const Vec3 white(1, 1, 1);
-  annotationLine(FR, FL, white);
-  annotationLine(FL, BL, white);
-  annotationLine(BL, BR, white);
-  annotationLine(BR, FR, white);
+  if (!IS_DEBUG) annotationLine(FR, FL, white);
+  if (!IS_DEBUG) annotationLine(FL, BL, white);
+  if (!IS_DEBUG) annotationLine(BL, BR, white);
+  if (!IS_DEBUG) annotationLine(BR, FR, white);
 }
 
 // ----------------------------------------------------------------------------
@@ -735,8 +738,10 @@ Q_Learner::worldState* CtfSeeker::get_world_state(){
   Vec3 e_forward = ctfEnemies[0]->getForward();
   Vec3 toHideSpot = hide() - position();
 
-  if (state == tagged) g_state = 1;
-  if (state == atGoal) g_state = 2;
+  if (gSeeker->state == tagged)
+    g_state = 1;
+  if (gSeeker->state == atGoal)
+    g_state = 2;
   g_dist = toHome.length();
   e_dist = toEnemy.length();
   hs_dist = toHideSpot.length();
@@ -835,7 +840,7 @@ Vec3 CtfSeeker::hide(){
     }
   }
 
-  annotation3dCircle(0.5f, BestHidingSpot, Vec3(0, 1, 0), Vec3(1, 1, 1), 50);
+  if (!IS_DEBUG) annotation3dCircle(0.5f, BestHidingSpot, Vec3(0, 1, 0), Vec3(1, 1, 1), 50);
 
   return BestHidingSpot;
 }
@@ -859,13 +864,13 @@ void CtfSeeker::draw(void)
   float hs_angle = atan2f(toHideSpot.x, toHideSpot.z) - atan2f(heading.x, heading.z);
 
   Vec3 ray_end = position() + forward().rotateAboutGlobalY(g_angle) * 3.0f;
-  annotationLine(position(), ray_end, Vec3(1.0f, 1.0f, 0.0f));
+  if (!IS_DEBUG) annotationLine(position(), ray_end, Vec3(1.0f, 1.0f, 0.0f));
   ray_end = position() + forward().rotateAboutGlobalY(e_facing) * 3.0f;
-  annotationLine(position(), ray_end, Vec3(0.0f, 1.0f, 1.0f));
+  if (!IS_DEBUG) annotationLine(position(), ray_end, Vec3(0.0f, 1.0f, 1.0f));
   ray_end = position() + forward().rotateAboutGlobalY(e_angle) * 3.0f;
-  annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 1.0f));
+  if (!IS_DEBUG) annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 1.0f));
   ray_end = position() + forward().rotateAboutGlobalY(hs_angle) * 3.0f;
-  annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 0.0f));
+  if (!IS_DEBUG) annotationLine(position(), ray_end, Vec3(1.0f, 0.0f, 0.0f));
 
   // select string describing current seeker state
   char* seekerStateString = "";
@@ -884,23 +889,24 @@ void CtfSeeker::draw(void)
   case tagged: seekerStateString = "tagged"; break;
   case atGoal: seekerStateString = "reached goal"; break;
   }
+  if (!IS_DEBUG) {
+    // annote seeker with its state as text
+    const Vec3 textOrigin = position() + Vec3(0, 0.25, 0);
+    std::ostringstream annote;
+    annote << seekerStateString << std::endl;
+    annote << std::setprecision(2) << std::setiosflags(std::ios::fixed)
+      << speed() << std::ends;
+    draw2dTextAt3dLocation(annote, textOrigin, gWhite);
 
-  // annote seeker with its state as text
-  const Vec3 textOrigin = position() + Vec3(0, 0.25, 0);
-  std::ostringstream annote;
-  annote << seekerStateString << std::endl;
-  annote << std::setprecision(2) << std::setiosflags(std::ios::fixed)
-    << speed() << std::ends;
-  draw2dTextAt3dLocation(annote, textOrigin, gWhite);
-
-  // display status in the upper left corner of the window
-  std::ostringstream status;
-  status << seekerStateString << std::endl;
-  status << obstacleCount << " obstacles [F1/F2]" << std::endl;
-  status << resetCount << " restarts" << std::ends;
-  const float h = drawGetWindowHeight();
-  const Vec3 screenLocation(10, h - 50, 0);
-  draw2dTextAt2dLocation(status, screenLocation, gGray80);
+    // display status in the upper left corner of the window
+    std::ostringstream status;
+    status << seekerStateString << std::endl;
+    status << obstacleCount << " obstacles [F1/F2]" << std::endl;
+    status << resetCount << " restarts" << std::ends;
+    const float h = drawGetWindowHeight();
+    const Vec3 screenLocation(10, h - 50, 0);
+    draw2dTextAt2dLocation(status, screenLocation, gGray80);
+  }
 }
 
 
@@ -928,7 +934,7 @@ void CtfSeeker::update(const float currentTime, const float elapsedTime)
       // run nn to obtain best choice from this world state
       Q_max = Q_agent.get_Q_max(curr_world_state);
       // update Q learning nn values
-      Q_agent.train_ann(prev_world_state, curr_world_state);
+      action = Q_agent.train_ann(prev_world_state, curr_world_state);
     }
     // print out debug info
     // printf("c_time: %f, QL_timer: %f\n", currentTime, QL_timer);
@@ -936,19 +942,18 @@ void CtfSeeker::update(const float currentTime, const float elapsedTime)
       switch (action)
       {
       case Q_Learner::_SEEK:
-        printf("action: SEEK\n\n");
+        //printf("action: SEEK\n\n");
         gSeeker->state = running;
         break;
       case Q_Learner::_EVADE:
-        printf("action: EVADE\n\n");
+        //printf("action: EVADE\n\n");
         gSeeker->state = fleeing;
         break;
       case Q_Learner::_HIDE:
         gSeeker->state = hiding;
-        printf("action: HIDE\n\n");
+        //printf("action: HIDE\n\n");
         break;
       default:
-        printf("action: FAIL\n");
         break;
       }
     }
@@ -974,9 +979,11 @@ void CtfSeeker::update(const float currentTime, const float elapsedTime)
     steer = steerToEvadeAllDefenders();
   case atGoal:
     applyBrakingForce(gBrakingRate, elapsedTime);
+    Q_agent.train_ann(prev_world_state, curr_world_state);
     break;
   case tagged:
     applyBrakingForce(gBrakingRate, elapsedTime);
+    Q_agent.train_ann(prev_world_state, curr_world_state);
     break;
   default:
     break;
@@ -996,8 +1003,8 @@ void CtfSeeker::update(const float currentTime, const float elapsedTime)
   applySteeringForce(steer, elapsedTime);
 
   // annotation
-  annotationVelocityAcceleration();
-  recordTrailVertex(currentTime, position());
+  if (!IS_DEBUG) annotationVelocityAcceleration();
+  if (!IS_DEBUG) recordTrailVertex(currentTime, position());
 }
 
 // ----------------------------------------------------------------------------

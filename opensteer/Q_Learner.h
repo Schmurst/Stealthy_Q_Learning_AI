@@ -22,7 +22,9 @@ public:
   Q_Learner(){
     init();
   }
-  ~Q_Learner(){};
+  ~Q_Learner(){
+    fann_save(ann, "neural_network.txt");
+  };
 
   enum actions { _SEEK, _EVADE, _HIDE };
   actions prev_action = _SEEK;
@@ -64,8 +66,10 @@ public:
 
     // create fann network from file
     ann = fann_create_from_file("neural_network.txt");
-    if (ann == NULL){
+    if (ann->errno_f == 0){
+      fann_destroy(ann);
       ann = fann_create_standard(num_layers, num_inputs, num_hidden, num_outputs);
+      fann_save(ann, "neural_network.txt");
     }
 
     // set fail bit limit whatever that is
@@ -73,7 +77,7 @@ public:
 
     // set learning discount for Q-Learning
     alpha = 0.9f;
-    gamma = 0.7f;
+    gamma = 0.8f;
   }
 
   actions train_ann(const worldState* prev_ws, const worldState* curr_ws){
@@ -85,23 +89,21 @@ public:
     // calculate the reward value for previous state and action
     float reward = get_reward(prev_ws, curr_ws);
     // assign the reward to the training vlaues for the neural network
-    printf("Action Reward: %f\n", reward);
-    printf("Current Value: %f\n", ann_training_values[prev_action]);
+    //printf("Action Reward: %f\n", reward);
+    //printf("Current Value: %f\n", ann_training_values[prev_action]);
     float old_value = ann_training_values[prev_action];
     ann_training_values[prev_action] = (1 - alpha) * old_value + alpha * (reward + gamma * get_Q_max(curr_ws));
     // the training on the neural network
     fann_train(ann, (fann_type*)&prev_ws, ann_training_values);
     // assign the new best action to prev_action and return it
     prev_action = get_best_action(curr_ws);
-
-    fann_save(ann, "neural_network.txt");
     return prev_action;
   }
 
   // returns an action given a world state
   actions get_best_action(const worldState* state){
     int best_action = -1;
-    float Q_max = -1000000;
+    float Q_max = -10.0f;
     fann_type* out;
 
     out = fann_run(ann, (fann_type*)&state);
@@ -113,7 +115,7 @@ public:
     }
 
     if (rand() % 10 < 1) {
-      printf("Random Action taken\n");
+      //printf("Random Action taken\n");
       best_action = rand() % 3;
     }
 
@@ -144,9 +146,10 @@ public:
     switch (curr_ws->state - prev_ws->state)
     {
     case 1:
+      printf("Lose\n");
       return 0.0f; // severe punishment for getting caught
-      break;
     case 2:
+      printf("Win\n");
       return 1.0f; // massive reward for success
     default:
       break;
