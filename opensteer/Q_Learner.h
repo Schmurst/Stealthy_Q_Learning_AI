@@ -147,16 +147,19 @@ public:
       return 0.0f; // severe punishment for getting caught
       break;
     case 2:
-      reward += 1.0f; // massive reward for success
+      return 1.0f; // massive reward for success
     default:
       break;
     }
 
+    float dist_threshold = 0.5f;
+
+    /*
     // GOAL REWARD
-    if (curr_ws->goal_dist < prev_ws->goal_dist + 1.0f){
-      reward += 0.2f;
+    if (curr_ws->goal_dist < prev_ws->goal_dist + dist_threshold){
+      reward += 0.8f;
     }
-    else if (curr_ws->goal_dist > prev_ws->goal_dist + 1.0f){
+    else if (curr_ws->goal_dist > prev_ws->goal_dist + dist_threshold){
       reward += 0.005f;
     }
     else{
@@ -164,11 +167,11 @@ public:
     }
 
     // ENEMY REWARD
-    if (curr_ws->enemy_dist < prev_ws->enemy_dist + 1.0f){
+    if (curr_ws->enemy_dist < prev_ws->enemy_dist + dist_threshold){
       reward += 0.005f;
     }
-    else if (curr_ws->enemy_dist > prev_ws->enemy_dist + 1.0f){
-      reward += 0.25f;
+    else if (curr_ws->enemy_dist > prev_ws->enemy_dist + dist_threshold){
+      reward += 0.3f;
     }
     else{
       reward += 0.1f;
@@ -191,12 +194,13 @@ public:
     }
 
     // HIDE DIST REWARD
-    if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist + 1.0f){
+    if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist + dist_threshold){
       reward += 0.1f;
     }
-    else if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist + 1.0f){
+    else if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist + dist_threshold){
       reward += 0.001f;
     }
+    */
 
 
     /*
@@ -268,7 +272,7 @@ public:
 
     */
     
-    return reward;
+    return reward / 100.0f;
   }
 };
 
