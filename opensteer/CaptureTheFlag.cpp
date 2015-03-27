@@ -341,7 +341,7 @@ void CtfEnemy::update(const float currentTime, const float elapsedTime)
 
     if (avoiding){
       float dist = (this->position() - gHomeBaseCenter).length();
-      if (dist > 8.0f){
+      if (dist > 20.0f){
         steer = steerForSeek(gHomeBaseCenter);
       }
       else if (wanderCounter == 0){
@@ -414,13 +414,20 @@ bool CtfEnemy::is_seeker_spotted(){
   }
 
   // is the seeker inside vision cone and radii?
-  float angle = atan2f(toTarget.x, toTarget.z) - atan2f(getForward().x, getForward().z);
-  if (angle < 0) angle += 2 * M_PI;
+  float angle_to_target = atan2f(toTarget.x, toTarget.z);
+  float angle_to_heading = atan2f(getForward().x, getForward().z);
+  if (angle_to_target < 0.0f) angle_to_target += 2 * M_PI;
+  if (angle_to_heading < 0.0f) angle_to_heading += 2 * M_PI;
+  float angle = angle_to_target - angle_to_heading;
 
-  Vec3 ray_end = position() + forward() * 3.0f;
+  //printf("angle to target: %f\n", angle_to_target);
+  //printf("angle to heading: %f\n", angle_to_heading);
+  //printf("angle difference: %f\n\n", angle);
+
+  Vec3 ray_end = position() + forward().rotateAboutGlobalY(angle) * 3.0f;
   annotationLine(position(), ray_end, Vec3(1, 0, 0));
 
-  const bool inVisionCone = (angle < viewingAngle || angle > -viewingAngle + M_PI);
+  const bool inVisionCone = (angle < viewingAngle || angle > -viewingAngle + 2 * M_PI);
   if (seekerToMeDist < viewingRadii && inVisionCone)
   {
     if (gSeeker->state != tagged && gSeeker->state != atGoal){

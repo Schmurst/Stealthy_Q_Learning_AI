@@ -13,8 +13,9 @@
 
 class Q_Learner{
 private:
-  float learning_discount;
+  float alpha;
   struct fann *ann;
+  float gamma;
 
 
 public:
@@ -63,13 +64,16 @@ public:
 
     // create fann network from file
     ann = fann_create_from_file("neural_network.txt");
+    if (ann == NULL){
+      ann = fann_create_standard(num_layers, num_inputs, num_hidden, num_outputs);
+    }
 
     // set fail bit limit whatever that is
     fann_set_bit_fail_limit(ann, 0.01f);
 
-
     // set learning discount for Q-Learning
-    learning_discount = 0.8f;
+    alpha = 0.9f;
+    gamma = 0.7f;
   }
 
   actions train_ann(const worldState* prev_ws, const worldState* curr_ws){
@@ -83,7 +87,8 @@ public:
     // assign the reward to the training vlaues for the neural network
     printf("Action Reward: %f\n", reward);
     printf("Current Value: %f\n", ann_training_values[prev_action]);
-    ann_training_values[prev_action] = reward;
+    float old_value = ann_training_values[prev_action];
+    ann_training_values[prev_action] = (1 - alpha) * old_value + alpha * (reward + gamma * get_Q_max(curr_ws));
     // the training on the neural network
     fann_train(ann, (fann_type*)&prev_ws, ann_training_values);
     // assign the new best action to prev_action and return it
@@ -147,6 +152,54 @@ public:
       break;
     }
 
+    // GOAL REWARD
+    if (curr_ws->goal_dist < prev_ws->goal_dist + 1.0f){
+      reward += 0.2f;
+    }
+    else if (curr_ws->goal_dist > prev_ws->goal_dist + 1.0f){
+      reward += 0.005f;
+    }
+    else{
+      reward += 0.05;
+    }
+
+    // ENEMY REWARD
+    if (curr_ws->enemy_dist < prev_ws->enemy_dist + 1.0f){
+      reward += 0.005f;
+    }
+    else if (curr_ws->enemy_dist > prev_ws->enemy_dist + 1.0f){
+      reward += 0.25f;
+    }
+    else{
+      reward += 0.1f;
+    }
+
+    // ENEMY FACING REWARD
+    if (curr_ws->enemy_facing < prev_ws->enemy_facing && curr_ws->enemy_facing < 0.52f){
+      reward += 0.005f;
+    }
+    else if (curr_ws->enemy_facing > prev_ws->enemy_facing + 0.26f){
+      reward += 0.01f;
+    }
+
+    // ENEMY ANGLE REWARD
+    if (curr_ws->enemy_angle > prev_ws->enemy_angle + 0.26f){
+      reward += 0.01f;
+    }
+    else if (curr_ws->enemy_facing < prev_ws->enemy_facing + 0.26f){
+      reward += 0.001f;
+    }
+
+    // HIDE DIST REWARD
+    if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist + 1.0f){
+      reward += 0.1f;
+    }
+    else if (curr_ws->hide_spot_dist < prev_ws->hide_spot_dist + 1.0f){
+      reward += 0.001f;
+    }
+
+
+    /*
     // GOAL RELATED REWARD ---------------------
     // reward for approaching the goal
     if (curr_ws->goal_dist < prev_ws->goal_dist){
@@ -213,10 +266,8 @@ public:
       reward = 0.0f;
     }
 
-    // increment reward by learning discount * next best state
-    reward += learning_discount * get_Q_max(curr_ws);
-    reward = (reward > 1.0f) ? reward : 1.0f;
-
+    */
+    
     return reward;
   }
 };
